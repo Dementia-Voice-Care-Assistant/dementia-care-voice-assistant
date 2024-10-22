@@ -12,13 +12,13 @@ import Foundation
 
 struct SettingsView: View {
     @State var removeBackButton: Bool = false
+    @State var isSidebarVisible: Bool = false
     var body: some View {
-        NavigationView {
+        HStack {
             List {
                 NavigationLink(destination: ContentView()) {
                     Text("Home")
                 }
-//                .simultaneousGesture(TapGesture().onEnded { removeBackButton = true })
             }
         }
         .navigationBarBackButtonHidden(removeBackButton) // Hides the back button

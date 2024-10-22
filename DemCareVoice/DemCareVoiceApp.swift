@@ -6,17 +6,25 @@
 //
 
 import SwiftUI
+import Firebase
 
 @main
 struct DemCareVoiceApp: App {
-    // Initialize the APIClient as a StateObject to ensure it's managed properly
+    // register app delegate w/ firebase
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    
+    // init API client and Firestore manager
     @StateObject private var apiClient = APIClient.shared
+    @StateObject private var firestoreManager = FirestoreManager.shared
+    @StateObject private var userManager = UserManager.shared
+    
 
     var body: some Scene {
         WindowGroup {
-            // Provide the APIClient to the ContentView using the environmentObject modifier
             ContentView()
-                .environmentObject(apiClient)
+                .environmentObject(apiClient) // pass api client
+                .environmentObject(firestoreManager) // pass firestore manager
+                .environmentObject(userManager) // pass in user state
         }
     }
 }
