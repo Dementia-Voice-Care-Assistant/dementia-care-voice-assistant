@@ -1,1 +1,0 @@
-# dementia-care-voice-assistant

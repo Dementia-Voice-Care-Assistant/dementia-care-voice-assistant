@@ -1,44 +1,44 @@
-//
-//  SpeechRecognizer.swift
-//  DemCareVoice
-//
-//  Created by Emily Centeno on 9/14/24.
-//
-
 import Foundation
 import Speech
+import AVFoundation
 
 class SpeechRecognizer: ObservableObject {
     @Published var recognizedText = "" // Holds the recognized text
+    @Published var isRecording = false // Track recording state for UI updates
 
     private var audioEngine = AVAudioEngine() // Handles audio input
     private var speechRecognizer = SFSpeechRecognizer() // Speech recognizer instance
     private var request = SFSpeechAudioBufferRecognitionRequest() // Handles audio data for recognition
     private var recognitionTask: SFSpeechRecognitionTask?
 
-    // Request permission for speech recognition
+// MARK: - Request Authorization
     func requestAuthorization() {
         SFSpeechRecognizer.requestAuthorization { authStatus in
-            switch authStatus {
-            case .authorized:
-                print("Speech recognition authorized.")
-            case .denied, .restricted, .notDetermined:
-                print("Speech recognition not authorized.")
-            default:
-                break
+            DispatchQueue.main.async {
+                switch authStatus {
+                case .authorized:
+                    print("Speech recognition authorized.")
+                case .denied, .restricted, .notDetermined:
+                    print("Speech recognition not authorized.")
+                default:
+                    break
+                }
             }
         }
     }
 
-    // Start listening and converting speech to text
+// MARK: - Start Recording
     func startRecording() {
-        // Make sure the audio engine is not already running
-        if audioEngine.isRunning {
-            stopRecording()
+        guard SFSpeechRecognizer.authorizationStatus() == .authorized else {
+            print("Speech recognition not authorized. Requesting authorization.")
+            requestAuthorization()
             return
         }
 
-        // Setup the audio session
+        recognizedText = ""
+        request = SFSpeechAudioBufferRecognitionRequest()
+        isRecording = true
+
         let audioSession = AVAudioSession.sharedInstance()
         do {
             try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
@@ -47,14 +47,12 @@ class SpeechRecognizer: ObservableObject {
             print("Audio session setup failed: \(error.localizedDescription)")
         }
 
-        // Prepare audio input
         let inputNode = audioEngine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
             self.request.append(buffer) // Append audio buffer for recognition
         }
 
-        // Start audio engine
         audioEngine.prepare()
         do {
             try audioEngine.start()
@@ -62,11 +60,10 @@ class SpeechRecognizer: ObservableObject {
             print("Audio engine could not start: \(error.localizedDescription)")
         }
 
-        // Start speech recognition task
         recognitionTask = speechRecognizer?.recognitionTask(with: request) { result, error in
             if let result = result {
                 DispatchQueue.main.async {
-                    self.recognizedText = result.bestTranscription.formattedString // Update the recognized text
+                    self.recognizedText = result.bestTranscription.formattedString
                 }
             }
 
@@ -76,16 +73,15 @@ class SpeechRecognizer: ObservableObject {
             }
         }
     }
-
-    // Stop recording and reset the task
-    func stopRecording() {
+// MARK: - Stop Recording
+    func stopRecording(completion: ((String) -> Void)? = nil) {
         audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
         recognitionTask?.cancel()
         recognitionTask = nil
-        audioEngine.inputNode.removeTap(onBus: 0)
+        isRecording = false
+
+        // Return the final recognized text
+        completion?(recognizedText)
     }
-    
-    
-
 }
-
